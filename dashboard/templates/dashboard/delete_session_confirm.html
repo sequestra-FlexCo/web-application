@@ -1,0 +1,14 @@
+{% extends 'dashboard/base.html' %}
+
+{% block title %}Delete Session{% endblock %}
+
+{% block content %}
+<h2>⚠️ Delete Session</h2>
+<p>Are you sure you want to delete the session <strong>"{{ session.name }}"</strong>?</p>
+
+<form method="post" class="mt-3">
+  {% csrf_token %}
+  <button type="submit" class="btn btn-danger">Yes, Delete</button>
+  <a href="{% url 'session_detail' session.id %}" class="btn btn-secondary">Cancel</a>
+</form>
+{% endblock %}

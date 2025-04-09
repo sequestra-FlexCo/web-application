@@ -1,0 +1,40 @@
+{% extends 'dashboard/base.html' %}
+
+{% block title %}Sessions{% endblock %}
+
+{% block content %}
+<h2>📂 Experiment Sessions</h2>
+
+<!-- Session Dropdown -->
+<div class="mb-4">
+  <h4>Select Active Session:</h4>
+  <select id="session-select" class="form-select">
+    {% for session in sessions %}
+      <option value="{{ session.id }}">{{ session.name }} ({{ session.created_at|date:"Y-m-d H:i" }})</option>
+    {% endfor %}
+  </select>
+</div>
+
+<!-- New Session Button -->
+<a href="{% url 'create_session' %}" class="btn btn-success mb-3">➕ New Session</a>
+
+<!-- Session List -->
+<ul class="list-group">
+  {% for session in sessions %}
+    <li class="list-group-item d-flex justify-content-between align-items-center">
+      <div>
+        <a href="{% url 'session_detail' session.id %}">
+          {{ session.name }} – 
+          <span class="badge {% if session.status == 'active' %}bg-success{% else %}bg-secondary{% endif %}">
+            {{ session.get_status_display }}
+          </span>
+        </a>
+        <span class="text-muted small d-block">{{ session.created_at|date:"Y-m-d H:i" }}</span>
+      </div>
+      <a href="{% url 'delete_session' session.id %}" class="btn btn-sm btn-outline-danger">🗑️ Delete</a>
+    </li>
+  {% empty %}
+    <li class="list-group-item text-muted">No sessions yet.</li>
+  {% endfor %}
+</ul>
+{% endblock %}

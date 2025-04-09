@@ -1,0 +1,212 @@
+{% extends 'dashboard/base.html' %}
+
+{% block title %}Session: {{ session.name }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+  <div class="mb-4">
+    <h2 class="fw-bold">{{ session.name }}</h2>
+    <p class="text-muted">Created: {{ session.created_at }}</p>
+
+    <p>Status:
+      <span class="badge {% if session.status == 'active' %}bg-success{% else %}bg-secondary{% endif %}">
+        {{ session.get_status_display }}
+      </span>
+    </p>
+
+    {% if session.status == 'active' %}
+      <div class="mt-3">
+        <a href="{% url 'activate_session' session.id %}" class="btn btn-primary me-2">▶️ Activate (Run Scripts)</a>
+        <a href="{% url 'end_session' session.id %}" class="btn btn-danger">⛔ End Session</a>
+      </div>
+    {% endif %}
+  </div>
+
+  <!-- Motor RPM Control -->
+  <div class="card shadow mb-4">
+    <div class="card-body">
+      <h4 class="card-title">🌀 Motor RPM Control</h4>
+      <p class="mb-1"><strong>Initial RPM:</strong> {{ session.rpm }} RPM</p>
+
+      <input 
+        type="range" 
+        id="rpmSlider" 
+        min="300" max="1200" 
+        value="{{ session.rpm }}" 
+        step="10" 
+        class="form-range my-3"
+      >
+
+      <div class="mb-3">
+        <span class="fw-semibold">Current RPM:</span>
+        <span id="rpmValue" class="text-primary fw-bold">{{ session.rpm }}</span>
+      </div>
+
+      <button 
+        id="updateBtn" 
+        class="btn btn-outline-primary"
+      >
+        🔄 Update RPM
+      </button>
+      <a href="{% url 'stirrer_chart' session.id %}" class="btn btn-info mt-2 me-2">📊 View Live Chart</a>
+      <a href="{% url 'download_stirrer_csv' session.id %}" class="btn btn-success mt-2">⬇️ Download CSV</a>
+    </div>
+  </div>
+
+  <!-- Temperature Logs -->
+  <div class="card shadow mb-4">
+    <div class="card-body">
+      <h4 class="card-title">🌡️ Temperature Logs</h4>
+      {% if temperature_logs %}
+        <p class="text-muted">Temperature logs in process.</p>
+      {% else %}
+        <p class="text-muted">No temperature logs available.</p>
+      {% endif %}
+      <a href="{% url 'session_chart' session.id %}" class="btn btn-info mt-2 me-2">📊 View Live Chart</a>
+      <a href="{% url 'download_session_csv' session.id %}" class="btn btn-success mt-2">⬇️ Download CSV</a>
+    </div>
+  </div>
+
+  <!-- Script Logs -->
+  <div class="card shadow mb-5">
+    <div class="card-body">
+      <h4 class="card-title">📄 Script Logs</h4>
+      {% if script_logs %}
+        <ul class="list-group">
+          {% for log in script_logs %}
+            <li class="list-group-item">
+              <strong>{{ log.script_name }}</strong>
+              <small class="text-muted d-block">{{ log.timestamp|date:"Y-m-d H:i:s" }}</small>
+              <pre class="bg-light p-2 rounded mt-2 mb-1">{{ log.output }}</pre>
+              {% if log.error %}
+                <p class="text-danger mb-0"><strong>Error:</strong> {{ log.error }}</p>
+              {% endif %}
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="text-muted">No scripts have been run yet for this session.</p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- ⚖️ Weighing Logs Chart -->
+<div class="card shadow mb-5">
+  <div class="card-body">
+    <h4 class="card-title">⚖️ Weighing Chart</h4>
+    <form method="get" class="mb-3">
+      <label for="log_file" class="form-label fw-semibold">Choose log file:</label>
+      <div class="d-flex align-items-center gap-3 flex-wrap">
+        <select name="log_file" id="log_file" class="form-select w-auto">
+          <option value="">-- Select a file --</option>
+          {% for file in log_files %}
+            <option value="{{ file }}" {% if file == selected_file %}selected{% endif %}>{{ file }}</option>
+          {% endfor %}
+        </select>
+    
+        <input type="time" name="start_time" class="form-control w-auto" value="{{ start_time|default_if_none:'' }}">
+        <input type="time" name="end_time" class="form-control w-auto" value="{{ end_time|default_if_none:'' }}">
+    
+        <button type="submit" class="btn btn-outline-primary">📊 Plot</button>
+        <canvas id="weighingChart" height="100" style="width:100% !important; max-height:300px; border:1px solid #ccc;"></canvas>
+      </div>
+    </form>
+    {% if weighing_labels and weighing_values %}
+      <canvas id="weighingChart" height="100"></canvas>
+    {% elif selected_file %}
+      <p class="text-danger">⚠️ No valid data in the selected file.</p>
+    {% else %}
+      <p class="text-muted">Select a file to view its weight log chart.</p>
+    {% endif %}
+  </div>
+</div>
+
+<!-- JavaScript for RPM update -->
+<script>
+  const rpmSlider = document.getElementById('rpmSlider');
+  const rpmValue = document.getElementById('rpmValue');
+  const updateBtn = document.getElementById('updateBtn');
+
+  rpmSlider.addEventListener('input', () => {
+    rpmValue.textContent = rpmSlider.value;
+  });
+
+  updateBtn.addEventListener('click', async () => {
+    const rpm = rpmSlider.value;
+    try {
+      const res = await fetch("{% url 'set_rpm' session.id %}", {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'X-CSRFToken': '{{ csrf_token }}'
+        },
+        body: `rpm=${rpm}`
+      });
+
+      const data = await res.json();
+      if (data.status === 'success') {
+        rpmValue.textContent = data.rpm;
+      } else {
+        alert("Error: " + data.message);
+      }
+    } catch (err) {
+      alert("⚠️ Failed to send RPM: " + err);
+    }
+  });
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    const labels = JSON.parse(document.getElementById('weighing-labels').textContent);
+    const values = JSON.parse(document.getElementById('weighing-values').textContent);
+
+    const ctx = document.getElementById('weighingChart').getContext('2d');
+
+    new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: 'Weight (kg)',
+          data: values,
+          fill: false,
+          borderColor: 'rgba(75, 192, 192, 1)',
+          backgroundColor: 'rgba(75, 192, 192, 0.2)',
+          tension: 0.1
+        }]
+      },
+      options: {
+        responsive: true,
+        scales: {
+          x: {
+            title: {
+              display: true,
+              text: 'Time'
+            }
+          },
+          y: {
+            title: {
+              display: true,
+              text: 'Weight'
+            }
+          }
+        },
+        plugins: {
+          legend: {
+            display: true,
+            position: 'top'
+          },
+          tooltip: {
+            mode: 'index',
+            intersect: false
+          }
+        }
+      }
+    });
+  });
+</script>
+
+{% endblock %}
