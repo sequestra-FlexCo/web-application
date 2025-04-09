@@ -2,13 +2,16 @@ import serial
 import time
 import sys
 import os
+from datetime import datetime
+
+# Add the project root (one level up from /scripts) to sys.path
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+# Set the settings module
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'controlhub.settings')
+
 import django
-
-# Django setup
-sys.path.append("C:/Users/Siddarth Shankar/Desktop/Web_Application")
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "controlhub.settings")
 django.setup()
-
 from dashboard.models import Session, ScriptLog
 
 # --- Get session ID ---

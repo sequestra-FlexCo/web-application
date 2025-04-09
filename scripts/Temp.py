@@ -1,17 +1,19 @@
 import serial
 import time
 import os
-import django
 import sys
 from datetime import datetime
 
-# Setup Django
-sys.path.append("C:/Users/Siddarth Shankar/Desktop/Web_Application")
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "controlhub.settings")
+# Add the project root (one level up from /scripts) to sys.path
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+# Set the settings module
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'controlhub.settings')
+
+
+import django
 django.setup()
-
 from dashboard.models import TemperatureLog, Session
-
 # Expect session ID to be passed as a command-line argument
 if len(sys.argv) < 2:
     print("Missing session ID.")
